@@ -48,6 +48,3 @@ python generate_finance_tracker.py
 ## Notes
 - The `dist/` and `node_modules/` folders are generated and should not be edited directly.
 - Remove or ignore any files not listed above if not required for your workflow.
-
-## License
-MIT License (or specify your license)
