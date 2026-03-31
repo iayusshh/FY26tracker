@@ -917,9 +917,9 @@ export default function App() {
             <PageTitle title="Commodity PnL" sub="MCX · NCDEX — non-speculative business income under §43(5)" />
             <Card>
               <SectionHeader
-                title="Commodity Trading — by Exchange"
+                title="Commodity Trading — by Broker"
                 accent="#EF4444"
-                action={!isPrintMode && <AddBtn onClick={addCommBroker} label="+ Add Exchange" color="#EF4444" />}
+                action={!isPrintMode && <AddBtn onClick={addCommBroker} label="+ Add Broker" color="#EF4444" />}
               />
               <div style={{ padding: "4px 0" }}>
                 {commBrokers.map((b, i) => (
