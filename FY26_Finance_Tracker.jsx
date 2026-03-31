@@ -37,7 +37,14 @@ const pct = (n) => (!n || isNaN(n)) ? "—" : `${(n * 100).toFixed(1)}%`;
 const pnlColor = (n) => n > 0 ? T.pos : n < 0 ? T.neg : T.textMuted;
 
 const initQuarterlyFnO = () => QUARTERS.map(() => ({ gross: 0, charges: 0, other: 0, remarks: "" }));
-const initQuarterlyEquity = () => QUARTERS.map(() => ({ gross: 0, charges: 0, other: 0, remarks: "" }));
+const initQuarterlyEquity = () => QUARTERS.map(() => ({
+  stcg: 0,
+  ltcg: 0,
+  dividends: 0,
+  charges: 0,
+  other: 0,
+  remarks: ""
+}));
 const initQuarterlyCommodity = () => QUARTERS.map(() => ({ gross: 0, charges: 0, other: 0, remarks: "" }));
 const initCrypto = () => ({ spot: 0, derivatives: 0, airdrops: 0, spotTds: 0, derivTds: 0, airdropTds: 0 });
 const initMonthBiz = () => MONTHS.map(() => ({ client: "", revenue: 0, expenses: 0, notes: "" }));
@@ -45,7 +52,7 @@ const createBroker = (id, name = `Broker ${id}`) => ({ id, name, quarters: initQ
 const createCommBroker = (id, name = `Exchange ${id}`) => ({ id, name, quarters: initQuarterlyCommodity() });
 const fnoNet = (data) => data.map(q => q.gross - q.charges - q.other);
 const fnoTotal = (data) => fnoNet(data).reduce((a, b) => a + b, 0);
-const eqNet = (data) => data.map(q => q.gross - q.charges - q.other);
+const eqNet = (data) => data.map(q => (q.stcg || 0) + (q.ltcg || 0) + (q.dividends || 0) - (q.charges || 0) - (q.other || 0));
 const eqTotal = (data) => eqNet(data).reduce((a, b) => a + b, 0);
 const commNet = (data) => data.map(q => q.gross - q.charges - q.other);
 const commTotal = (data) => commNet(data).reduce((a, b) => a + b, 0);
@@ -237,9 +244,11 @@ const BrokerTable = ({ broker, accent, brokerCount, onUpdate, onUpdateName, onRe
 const EquityTable = ({ data, setter, label, onUpdateEq }) => {
   const nets = eqNet(data);
   const tot = eqTotal(data);
-  const totGross = data.reduce((a, q) => a + q.gross, 0);
-  const totChrg = data.reduce((a, q) => a + q.charges, 0);
-  const totOther = data.reduce((a, q) => a + q.other, 0);
+  const totStcg = data.reduce((a, q) => a + (q.stcg || 0), 0);
+  const totLtcg = data.reduce((a, q) => a + (q.ltcg || 0), 0);
+  const totDiv = data.reduce((a, q) => a + (q.dividends || 0), 0);
+  const totChrg = data.reduce((a, q) => a + (q.charges || 0), 0);
+  const totOther = data.reduce((a, q) => a + (q.other || 0), 0);
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 20px 10px" }}>
@@ -252,22 +261,26 @@ const EquityTable = ({ data, setter, label, onUpdateEq }) => {
       <Table>
         <thead><tr>
           <TH left w="140px">Quarter</TH>
-          <TH>Gross PnL</TH><TH>Charges</TH><TH>Other Costs</TH><TH>Net PnL</TH><TH w="120px">Remarks</TH>
+          <TH>STCG</TH><TH>LTCG</TH><TH>Dividends</TH><TH>Charges</TH><TH>Other Costs</TH><TH>Net PnL</TH><TH w="120px">Remarks</TH>
         </tr></thead>
         <tbody>
           {QUARTERS.map((q, i) => (
             <tr key={i} style={{ background: i % 2 === 0 ? T.card : T.rowAlt }}>
               <TD left><span style={{ color: T.textSub, fontSize: 12 }}>{q}</span></TD>
-              <TD><NumberInput value={data[i].gross} onChange={v => onUpdateEq(setter, i, "gross", v)} accent /></TD>
-              <TD><NumberInput value={data[i].charges} onChange={v => onUpdateEq(setter, i, "charges", v)} /></TD>
-              <TD><NumberInput value={data[i].other} onChange={v => onUpdateEq(setter, i, "other", v)} /></TD>
+              <TD><NumberInput value={data[i].stcg || 0} onChange={v => onUpdateEq(setter, i, "stcg", v)} accent /></TD>
+              <TD><NumberInput value={data[i].ltcg || 0} onChange={v => onUpdateEq(setter, i, "ltcg", v)} /></TD>
+              <TD><NumberInput value={data[i].dividends || 0} onChange={v => onUpdateEq(setter, i, "dividends", v)} /></TD>
+              <TD><NumberInput value={data[i].charges || 0} onChange={v => onUpdateEq(setter, i, "charges", v)} /></TD>
+              <TD><NumberInput value={data[i].other || 0} onChange={v => onUpdateEq(setter, i, "other", v)} /></TD>
               <TD color={pnlColor(nets[i])} bold mono>{fmt(nets[i])}</TD>
               <TD><TextInput value={data[i].remarks} onChange={v => onUpdateEq(setter, i, "remarks", v)} placeholder="Notes" /></TD>
             </tr>
           ))}
           <TotalRow cells={[
             { value: "Total" },
-            { value: fmt(totGross), color: T.textMuted, mono: true },
+            { value: fmt(totStcg), color: T.textMuted, mono: true },
+            { value: fmt(totLtcg), color: T.textMuted, mono: true },
+            { value: fmt(totDiv), color: T.textMuted, mono: true },
             { value: fmt(totChrg), color: T.textMuted, mono: true },
             { value: fmt(totOther), color: T.textMuted, mono: true },
             { value: fmt(tot), color: pnlColor(tot), mono: true },
@@ -446,11 +459,9 @@ export default function App() {
   const fnoCombinedTotal = fnoBrokers.reduce((s, b) => s + fnoTotal(b.quarters), 0);
 
   // eslint-disable-next-line no-shadow
-  const eqNet   = (data) => data.map(q => q.stcg + q.ltcg - q.charges + q.dividends);
-  // eslint-disable-next-line no-shadow
-  const eqTotal = (data) => eqNet(data).reduce((a, b) => a + b, 0);
-  const eqChargesTotal  = eqYou.reduce((s, q) => s + q.charges, 0);
-  const eqGrossRealised = eqYou.reduce((s, q) => s + q.stcg + q.ltcg + q.dividends, 0);
+  // eqNet and eqTotal are now defined globally and use the correct fields
+  const eqChargesTotal  = eqYou.reduce((s, q) => s + (q.charges || 0), 0);
+  const eqGrossRealised = eqYou.reduce((s, q) => s + (q.stcg || 0) + (q.ltcg || 0) + (q.dividends || 0), 0);
 
   const cryptoNets = useMemo(() => ({
     spot:  crypto.spot  - crypto.spotTds,
@@ -521,7 +532,31 @@ export default function App() {
         const d = parsed?.data ?? parsed;
         if (typeof d.userName === "string") setUserName(d.userName);
         if (Array.isArray(d.fnoBrokers) && d.fnoBrokers.length) { setFnoBrokers(d.fnoBrokers); brokerIdRef.current = Math.max(...d.fnoBrokers.map(b => b.id||0), 1) + 1; }
-        if (Array.isArray(d.eqYou) && d.eqYou.length === QUARTERS.length) setEqYou(d.eqYou);
+        if (Array.isArray(d.eqYou) && d.eqYou.length === QUARTERS.length) {
+          // Migrate old equity data if needed
+          const migrated = d.eqYou.map(q => {
+            if (q.stcg === undefined && q.ltcg === undefined && q.dividends === undefined) {
+              // Old format: only gross, charges, other, remarks
+              return {
+                stcg: q.gross || 0,
+                ltcg: 0,
+                dividends: 0,
+                charges: q.charges || 0,
+                other: q.other || 0,
+                remarks: q.remarks || ""
+              };
+            }
+            return {
+              stcg: q.stcg || 0,
+              ltcg: q.ltcg || 0,
+              dividends: q.dividends || 0,
+              charges: q.charges || 0,
+              other: q.other || 0,
+              remarks: q.remarks || ""
+            };
+          });
+          setEqYou(migrated);
+        }
         if (d.crypto) setCrypto(d.crypto);
         if (Array.isArray(d.biz) && d.biz.length === MONTHS.length) setBiz(d.biz);
         if (Array.isArray(d.commBrokers) && d.commBrokers.length) { setCommBrokers(d.commBrokers); commBrokerIdRef.current = Math.max(...d.commBrokers.map(b => b.id||0), 1) + 1; }
